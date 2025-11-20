@@ -1,0 +1,31 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+@theme static {
+  --font-family-exo: "Exo", sans-serif;
+  --background-image-auth: url("/auth-bg.png");
+
+  --color-mine-shaft-50: #f6f5f5;
+  --color-mine-shaft-100: #e7e6e6;
+  --color-mine-shaft-200: #d2cfd0;
+  --color-mine-shaft-300: #b2aeaf;
+  --color-mine-shaft-400: #292727;
+  --color-mine-shaft-500: #292727;
+  --color-mine-shaft-600: #605a5b;
+  --color-mine-shaft-700: #514d4d;
+  --color-mine-shaft-800: #474343;
+  --color-mine-shaft-900: #3e3b3b;
+  --color-mine-shaft-950: #292727;
+
+  --color-san-marino-50: #f2f7fd;
+  --color-san-marino-100: #e4eefb;
+  --color-san-marino-200: #c3ddf6;
+  --color-san-marino-300: #8fc2ee;
+  --color-san-marino-400: #53a3e3;
+  --color-san-marino-500: #2c87d1;
+  --color-san-marino-600: #1d6bb1;
+  --color-san-marino-700: #1a5590;
+  --color-san-marino-800: #1a4977;
+  --color-san-marino-900: #1a3d63;
+  --color-san-marino-950: #122742;
+}
