@@ -7,7 +7,7 @@ useHead({
   },
 });
 
-const title = "Nuxt Starter Template";
+const title = "Link Saver";
 const description =
   "A production-ready starter template powered by Nuxt UI. Build beautiful, accessible, and performant applications in minutes, not hours.";
 
@@ -23,7 +23,7 @@ useSeoMeta({
 </script>
 
 <template>
-  <div class="font-family-exo">
+  <div class="font-family-exo px-4">
     <UApp>
       <NuxtLayout>
         <NuxtPage />

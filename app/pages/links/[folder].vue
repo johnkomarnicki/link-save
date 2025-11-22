@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { Link, Folder } from "~/types";
 
+const route = useRoute();
+const router = useRouter();
 const supabase = useSupabaseClient();
 const user = useSupabaseUser();
 const toast = useToast();
@@ -10,8 +12,11 @@ const isFolderModalOpen = ref(false);
 const isEditFolderModalOpen = ref(false);
 const editingLink = ref<Link | null>(null);
 const editingFolder = ref<Folder | null>(null);
-const selectedFolderId = ref<string | null>(null);
-const showMobileFolderView = ref(false);
+
+// For mobile: track if we should show folder view
+// Initialize based on whether we're already on a folder route
+// Only show folder view if there's actually a folder param (not undefined or empty)
+const showMobileFolderView = ref(!!route.params.folder);
 
 const editForm = ref({
   title: "",
@@ -22,8 +27,16 @@ const newTag = ref("");
 
 const folderForm = ref({
   name: "",
-  color: "#6366f1",
+  color: "#f59e0b",
   icon: "folder",
+});
+
+// Get folder ID from route
+const selectedFolderId = computed(() => {
+  const folderParam = route.params.folder as string;
+  if (folderParam === 'all') return null;
+  if (folderParam === 'unsorted') return 'unsorted';
+  return folderParam;
 });
 
 // Fetch folders
@@ -124,6 +137,17 @@ const unsortedCount = computed(() => {
   if (!links.value) return 0;
   return links.value.filter((link) => !link.folder_id).length;
 });
+
+// Navigation helpers
+function navigateToFolder(folderId: string | null) {
+  let path = '/links/all';
+  if (folderId === 'unsorted') {
+    path = '/links/unsorted';
+  } else if (folderId) {
+    path = `/links/${folderId}`;
+  }
+  router.push(path);
+}
 
 function openEditModal(link: Link, event: Event) {
   event.preventDefault();
@@ -296,8 +320,9 @@ async function deleteFolder(folderId: string) {
       color: "success",
     });
 
+    // Navigate to "all" if we're deleting the current folder
     if (selectedFolderId.value === folderId) {
-      selectedFolderId.value = null;
+      navigateToFolder(null);
     }
 
     await refreshFolders();
@@ -374,6 +399,24 @@ function formatDate(dateString: string) {
     day: "numeric",
   }).format(date);
 }
+
+// For mobile: toggle folder view
+function selectFolderMobile(folderId: string | null) {
+  showMobileFolderView.value = true;
+  navigateToFolder(folderId);
+}
+
+function backToFoldersMobile() {
+  showMobileFolderView.value = false;
+  // Navigate back to the folder list route
+  router.push('/links');
+}
+
+// Watch for route changes to update mobile folder view state
+watch(() => route.params.folder, (newFolder) => {
+  // Show folder view only when we have a valid folder param
+  showMobileFolderView.value = !!newFolder;
+});
 </script>
 
 <template>
@@ -381,7 +424,7 @@ function formatDate(dateString: string) {
     <UContainer class="py-8">
       <div class="flex gap-6">
         <!-- Sidebar (Desktop) -->
-        <div class="hidden md:block w-64 shrink-0">
+        <div class="hidden lg:block w-64 shrink-0">
           <div class="sticky top-8 space-y-4">
             <!-- Add Link Button -->
             <UButton
@@ -412,9 +455,9 @@ function formatDate(dateString: string) {
                   ? 'bg-primary-50 text-primary-600'
                   : 'hover:bg-gray-100'
               "
-              @click="selectedFolderId = null"
+              @click="navigateToFolder(null)"
             >
-              <UIcon name="i-heroicons-folder-open" class="w-5 h-5" />
+              <UIcon name="i-heroicons-folder-open" class="w-5 h-5" style="color: #f59e0b" />
               <span class="flex-1 font-medium">All Links</span>
               <span class="text-sm text-gray-500">{{
                 links?.length || 0
@@ -429,7 +472,7 @@ function formatDate(dateString: string) {
                   ? 'bg-primary-50 text-primary-600'
                   : 'hover:bg-gray-100'
               "
-              @click="selectedFolderId = 'unsorted'"
+              @click="navigateToFolder('unsorted')"
             >
               <UIcon name="i-heroicons-inbox" class="w-5 h-5" />
               <span class="flex-1 font-medium">Unsorted</span>
@@ -457,7 +500,7 @@ function formatDate(dateString: string) {
                       ? 'bg-primary-50 text-primary-600'
                       : 'hover:bg-gray-100'
                   "
-                  @click="selectedFolderId = folder.id"
+                  @click="navigateToFolder(folder.id)"
                 >
                   <UIcon
                     :name="`i-heroicons-${folder.icon}`"
@@ -510,7 +553,7 @@ function formatDate(dateString: string) {
         <!-- Main Content -->
         <div class="flex-1 space-y-6">
           <!-- Mobile Folder Navigation -->
-          <div class="md:hidden space-y-4">
+          <div class="lg:hidden space-y-4">
             <!-- Folder Grid View (Default) -->
             <div v-if="!showMobileFolderView">
               <!-- Add Link Button (Mobile) -->
@@ -536,7 +579,7 @@ function formatDate(dateString: string) {
                 </div>
 
                 <!-- Folder Squares Grid (Including All & Unsorted) -->
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                   <!-- All Links Square -->
                   <button
                     class="w-full aspect-square rounded-xl flex flex-col items-center justify-center gap-2 transition-all border-2"
@@ -545,19 +588,16 @@ function formatDate(dateString: string) {
                         ? 'border-primary-500 shadow-md'
                         : 'border-transparent hover:shadow-md'
                     "
-                    style="background-color: rgba(99, 102, 241, 0.1)"
-                    @click="
-                      selectedFolderId = null;
-                      showMobileFolderView = true;
-                    "
+                    style="background-color: rgba(245, 158, 11, 0.1)"
+                    @click="selectFolderMobile(null)"
                   >
                     <UIcon
                       name="i-heroicons-folder-open"
                       class="w-8 h-8"
-                      style="color: #6366f1"
+                      style="color: #f59e0b"
                     />
                     <div class="text-center px-2">
-                      <div class="font-medium text-xs">All</div>
+                      <div class="font-semibold text-sm">All</div>
                       <div class="text-xs text-gray-500">
                         {{ links?.length || 0 }}
                       </div>
@@ -573,10 +613,7 @@ function formatDate(dateString: string) {
                         : 'border-transparent hover:shadow-md'
                     "
                     style="background-color: rgba(107, 114, 128, 0.1)"
-                    @click="
-                      selectedFolderId = 'unsorted';
-                      showMobileFolderView = true;
-                    "
+                    @click="selectFolderMobile('unsorted')"
                   >
                     <UIcon
                       name="i-heroicons-inbox"
@@ -584,7 +621,7 @@ function formatDate(dateString: string) {
                       style="color: #6b7280"
                     />
                     <div class="text-center px-2">
-                      <div class="font-medium text-xs">Unsorted</div>
+                      <div class="font-semibold text-sm">Unsorted</div>
                       <div class="text-xs text-gray-500">{{ unsortedCount }}</div>
                     </div>
                   </button>
@@ -600,10 +637,7 @@ function formatDate(dateString: string) {
                       :style="{
                         backgroundColor: folder.color + '20',
                       }"
-                      @click="
-                        selectedFolderId = folder.id;
-                        showMobileFolderView = true;
-                      "
+                      @click="selectFolderMobile(folder.id)"
                     >
                       <UIcon
                         :name="`i-heroicons-${folder.icon}`"
@@ -611,7 +645,7 @@ function formatDate(dateString: string) {
                         :style="{ color: folder.color }"
                       />
                       <div class="text-center px-2">
-                        <div class="font-medium text-xs truncate">
+                        <div class="font-semibold text-sm truncate">
                           {{ folder.name }}
                         </div>
                         <div class="text-xs text-gray-500">
@@ -649,6 +683,20 @@ function formatDate(dateString: string) {
                       </div>
                     </UDropdownMenu>
                   </div>
+
+                  <!-- Create New Folder Box -->
+                  <button
+                    class="w-full aspect-square rounded-xl flex flex-col items-center justify-center gap-2 transition-all border-2 border-dashed border-gray-300 hover:border-primary-500 hover:bg-primary-50"
+                    @click="openFolderModal"
+                  >
+                    <UIcon
+                      name="i-heroicons-plus-circle"
+                      class="w-8 h-8 text-gray-400"
+                    />
+                    <div class="text-center px-2">
+                      <div class="font-semibold text-sm text-gray-600">New Folder</div>
+                    </div>
+                  </button>
                 </div>
 
                 <!-- Empty State for No Folders -->
@@ -666,7 +714,7 @@ function formatDate(dateString: string) {
               <!-- Back Button -->
               <button
                 class="flex items-center gap-2 text-primary-600 mb-4 -ml-1"
-                @click="showMobileFolderView = false"
+                @click="backToFoldersMobile"
               >
                 <UIcon name="i-heroicons-arrow-left" class="w-5 h-5" />
                 <span class="font-medium">Back to Folders</span>
@@ -679,12 +727,12 @@ function formatDate(dateString: string) {
                   <div
                     v-if="selectedFolderId === null"
                     class="w-12 h-12 rounded-xl flex items-center justify-center"
-                    style="background-color: rgba(99, 102, 241, 0.1)"
+                    style="background-color: rgba(245, 158, 11, 0.1)"
                   >
                     <UIcon
                       name="i-heroicons-folder-open"
                       class="w-7 h-7"
-                      style="color: #6366f1"
+                      style="color: #f59e0b"
                     />
                   </div>
                   <div
@@ -737,6 +785,7 @@ function formatDate(dateString: string) {
 
                 <!-- Folder Actions -->
                 <UDropdownMenu
+                  v-if="selectedFolderId && selectedFolderId !== 'unsorted'"
                   :items="[
                     [
                       {
@@ -774,7 +823,7 @@ function formatDate(dateString: string) {
           <!-- Header (Desktop Only) -->
           <div
             v-if="!showMobileFolderView"
-            class="hidden md:flex flex-col md:flex-row md:items-center md:justify-between"
+            class="hidden lg:flex flex-col lg:flex-row lg:items-center lg:justify-between"
           >
             <div>
               <h1 class="text-3xl font-bold">
@@ -798,7 +847,7 @@ function formatDate(dateString: string) {
           <div
             v-if="loading"
             class="flex justify-center py-12"
-            :class="[showMobileFolderView ? 'block' : 'hidden md:block']"
+            :class="[showMobileFolderView ? 'block' : 'hidden lg:block']"
           >
             <UIcon name="i-heroicons-arrow-path" class="w-8 h-8 animate-spin" />
           </div>
@@ -806,7 +855,7 @@ function formatDate(dateString: string) {
           <!-- Empty State -->
           <UCard
             v-else-if="filteredLinks.length === 0"
-            :class="[showMobileFolderView ? 'block' : 'hidden md:block']"
+            :class="[showMobileFolderView ? 'block' : 'hidden lg:block']"
           >
             <div class="text-center py-12">
               <UIcon
@@ -828,7 +877,7 @@ function formatDate(dateString: string) {
           <div
             v-else
             class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-            :class="[showMobileFolderView ? 'block' : 'hidden md:grid']"
+            :class="[showMobileFolderView ? 'block' : 'hidden lg:grid']"
           >
             <UCard
               v-for="link in filteredLinks"
@@ -1062,7 +1111,7 @@ function formatDate(dateString: string) {
               <input
                 v-model="folderForm.color"
                 type="color"
-                class="w-full h-10 rounded cursor-pointer"
+                class="w-full h-10 rounded-lg border border-gray-300 cursor-pointer"
               />
             </div>
           </div>
@@ -1116,7 +1165,7 @@ function formatDate(dateString: string) {
               <input
                 v-model="folderForm.color"
                 type="color"
-                class="w-full h-10 rounded cursor-pointer"
+                class="w-full h-10 rounded-lg border border-gray-300 cursor-pointer"
               />
             </div>
           </div>
